@@ -2,7 +2,7 @@ import { Client, type Room } from "@colyseus/sdk"
 import type { User } from "@firebase/auth-types"
 import firebase from "firebase/compat/app"
 import type { server } from "../../app.config.ts"
-import { FIREBASE_CONFIG } from "../../config"
+import { AUTH_EMULATOR_HOST, FIREBASE_CONFIG } from "../../config"
 import type AfterGameState from "../../rooms/states/after-game-state"
 import type GameState from "../../rooms/states/game-state"
 import type LobbyState from "../../rooms/states/lobby-state"
@@ -29,10 +29,30 @@ logger.info(`Colyseus endpoint: ${endpoint}`)
 
 export const client = new Client<typeof server>(endpoint)
 
-export function authenticateUser() {
+/**
+ * The single place the client initialises Firebase. Every entry point that touches
+ * firebase.auth() -- the login page, the lobby helpers here, the replay page -- must
+ * go through this.
+ *
+ * The emulator MUST be configured before the SDK restores a persisted session. If it
+ * is not, the SDK talks to real Google while the sign-in itself went to the emulator:
+ * you end up with a split state where registration succeeds locally but background
+ * calls such as accounts:lookup are sent to identitytoolkit.googleapis.com and fail
+ * with 400.
+ */
+let emulatorConfigured = false
+export function ensureFirebase() {
   if (!firebase.apps.length) {
     firebase.initializeApp(FIREBASE_CONFIG)
   }
+  if (AUTH_EMULATOR_HOST && !emulatorConfigured) {
+    firebase.auth().useEmulator(`http://${AUTH_EMULATOR_HOST}`)
+    emulatorConfigured = true
+  }
+}
+
+export function authenticateUser() {
+  ensureFirebase()
 
   return new Promise<User>((resolve, reject) => {
     firebase.auth().onAuthStateChanged(async (user) => {

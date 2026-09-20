@@ -249,7 +249,17 @@ export const server = defineServer({
               "https://pokev9.52kx.net",
               "https://www.john-auto-chess.com",
               "https://pokemon-auto-spire.com",
-              "https://www.pokemon-auto-legacy.com"
+              "https://www.pokemon-auto-legacy.com",
+              // Firebase Auth emulator for offline play. connect-src falls back to
+              // default-src, and the emulator is a different origin (different port),
+              // so without this the browser blocks the sign-in requests. Only added
+              // when the emulator is actually configured, keeping production CSP tight.
+              ...(process.env.FIREBASE_AUTH_EMULATOR_HOST
+                ? [
+                    `http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}`,
+                    `ws://${process.env.FIREBASE_AUTH_EMULATOR_HOST}`
+                  ]
+                : [])
             ],
             scriptSrc: [
               "'self'",

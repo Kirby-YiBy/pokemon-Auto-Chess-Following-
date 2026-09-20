@@ -3,10 +3,11 @@ import "firebase/compat/auth"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
-import { FIREBASE_CONFIG } from "../../../../../config"
+import { AUTH_EMULATOR_HOST } from "../../../../../config"
 import { throttle } from "../../../../../utils/function"
 import { joinLobbyRoom } from "../../../game/lobby-logic"
 import { useAppDispatch, useAppSelector } from "../../../hooks"
+import { ensureFirebase } from "../../../network"
 import { logIn, logOut } from "../../../stores/NetworkStore"
 //import AnonymousButton from "./anonymous-button"
 import { StyledFirebaseAuth } from "./styled-firebase-auth"
@@ -31,6 +32,14 @@ export default function Login() {
       .catch(() => setPrejoining(false))
   }, 1000)
 
+  // FirebaseUI signs users in through its OWN throwaway Firebase app instance
+  // ("<name>-firebaseui-temp"), so calling useEmulator on the default app's auth is
+  // NOT enough on its own -- the widget only honours emulatorConfig on this config
+  // object. Both are needed: emulatorConfig covers the widget, and the direct
+  // useEmulator call below covers the app's own firebase.auth(), which network.ts
+  // uses to mint ID tokens.
+  const [emulatorHost, emulatorPort] = (AUTH_EMULATOR_HOST ?? "").split(":")
+
   const uiConfig = {
     // Popup signin flow rather than Navigate flow.
     signInFlow: "popup",
@@ -44,16 +53,25 @@ export default function Login() {
       },
       firebase.auth.TwitterAuthProvider.PROVIDER_ID
     ],
+    ...(AUTH_EMULATOR_HOST
+      ? {
+          emulatorConfig: {
+            protocol: "http",
+            host: emulatorHost,
+            port: Number(emulatorPort)
+          }
+        }
+      : {}),
     callbacks: {
       // Avoid Navigates after sign-in.
       signInSuccessWithAuthResult: () => true
     }
   }
 
-  // Initialize Firebase
-  if (!firebase.apps.length) {
-    firebase.initializeApp(FIREBASE_CONFIG)
-  }
+  // Initialise Firebase (and point it at the auth emulator when configured) before the
+  // AuthUI below is started. Shared with the rest of the app so every firebase.auth()
+  // consumer targets the same backend.
+  ensureFirebase()
 
   useEffect(() => {
     firebase.auth().onAuthStateChanged((u) => {
