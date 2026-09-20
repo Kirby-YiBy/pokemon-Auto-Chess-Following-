@@ -70,7 +70,7 @@
     "@colyseus/msgpackr": "^1.11.2",
     "@colyseus/redis-driver": "^0.17.6",
     "@colyseus/redis-presence": "^0.17.8",
-    "@colyseus/schema": "^4.0.31",
+    "@colyseus/schema": "^5.0.32",
     "@colyseus/sdk": "^0.17.42",
     "@colyseus/tools": "^0.17.20",
     "@colyseus/ws-transport": "^0.17.9",
